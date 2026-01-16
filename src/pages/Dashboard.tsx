@@ -54,17 +54,26 @@ import type { ScanResult, Finding, CheckPerformed } from '../lib/api'
 import { api } from '../lib/api'
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TOOL & CATEGORY DEFINITIONS - 7 Categories, ~37 Tools
+// TOOL & CATEGORY DEFINITIONS - 7 Categories, 37 Tools (15 Ready ✅, 22 Coming Soon 🔜)
+// 
+// CAI Tools Used:
+//   - cai.tools.web.headers.web_request_framework (Security Headers, SSL/TLS, Cookies)
+//   - cai.tools.misc.reasoning.think (AI Reasoning logging)
+//   - cai.tools.reconnaissance.shodan (Coming: shodan_search, shodan_host_info)
+//   - cai.tools.reconnaissance.generic_linux_command (Coming: nmap, dig, subfinder)
+//   - Claude AI (claude-sonnet-4-20250514) for AI analysis
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface Tool {
   id: string
   name: string
-  description: string
-  longDescription: string
+  description: string        // Short tagline (user-benefit focused)
+  longDescription: string    // Detailed explanation
+  userBenefit: string        // "You'll learn..." / "Know if..."
   status: 'available' | 'coming-soon'
   icon: LucideIcon
-  caiTool: string
+  caiTool: string            // The actual CAI tool/function used
+  caiAgent: string           // Which CAI agent powers this tool
 }
 
 interface Category {
@@ -79,12 +88,13 @@ interface Category {
 
 const categories: Category[] = [
   // ─────────────────────────────────────────────────────────────────────────────
-  // 1️⃣ RECONNAISSANCE (6 tools)
+  // 1️⃣ RECONNAISSANCE (6 tools) - 0 ready, 6 coming soon
+  // CAI Agent: bug_bounter_agent, one_tool_agent
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'reconnaissance',
     name: 'Reconnaissance',
-    description: 'Surface discovery and attack surface mapping',
+    description: 'Discover what attackers can see from the outside',
     icon: Search,
     color: 'blue',
     emoji: '🔍',
@@ -92,303 +102,360 @@ const categories: Category[] = [
       { 
         id: 'network-scan', 
         name: 'Network Scanning', 
-        description: 'Discover live hosts', 
-        longDescription: 'Discover live hosts and network topology using active and passive scanning techniques.',
+        description: 'See what\'s visible to attackers',
+        longDescription: 'Discover live hosts and network topology. Find out what an attacker can see when they first look at the target.',
+        userBenefit: 'Know the full attack surface before buying',
         status: 'coming-soon', 
         icon: Network, 
-        caiTool: 'nmap'
+        caiTool: 'generic_linux_command (nmap)',
+        caiAgent: 'one_tool_agent'
       },
       { 
         id: 'port-scan', 
         name: 'Port Scanning', 
-        description: 'Open ports & services', 
-        longDescription: 'Identify open ports, running services, and potential entry points into the system.',
+        description: 'Find open doors hackers could enter',
+        longDescription: 'Identify open ports, running services, and potential entry points. Every open port is a potential vulnerability.',
+        userBenefit: 'Discover hidden services that shouldn\'t be exposed',
         status: 'coming-soon', 
         icon: Server, 
-        caiTool: 'nmap'
+        caiTool: 'generic_linux_command (nmap)',
+        caiAgent: 'bug_bounter_agent'
       },
       { 
         id: 'subdomain-enum', 
-        name: 'Subdomain Enumeration', 
-        description: 'Discover all subdomains', 
-        longDescription: 'Find all subdomains of the target domain to map the complete attack surface.',
+        name: 'Subdomain Discovery', 
+        description: 'Find forgotten or hidden subdomains',
+        longDescription: 'Discover all subdomains including staging servers, old apps, and forgotten assets that might be vulnerable.',
+        userBenefit: 'Uncover hidden assets the seller might have forgotten',
         status: 'coming-soon', 
         icon: Globe, 
-        caiTool: 'subfinder'
+        caiTool: 'generic_linux_command (subfinder)',
+        caiAgent: 'bug_bounter_agent'
       },
       { 
         id: 'dns-analysis', 
-        name: 'DNS Analysis', 
-        description: 'SPF, DKIM, DMARC', 
-        longDescription: 'Analyze DNS records including SPF, DKIM, DMARC for email security and domain configuration.',
+        name: 'Email Security Check', 
+        description: 'Check if emails can be spoofed',
+        longDescription: 'Analyze SPF, DKIM, and DMARC records to see if the domain is protected against email spoofing and phishing.',
+        userBenefit: 'Know if the domain can be used for phishing attacks',
         status: 'coming-soon', 
         icon: FileSearch, 
-        caiTool: 'dig'
+        caiTool: 'generic_linux_command (dig)',
+        caiAgent: 'dns_smtp_agent'
       },
       { 
         id: 'service-fingerprint', 
-        name: 'Service Fingerprinting', 
-        description: 'Identify service versions', 
-        longDescription: 'Identify exact versions of running services to check for known vulnerabilities.',
+        name: 'Technology Versions', 
+        description: 'Find outdated software with known exploits',
+        longDescription: 'Identify exact versions of running services. Old versions often have known vulnerabilities (CVEs) that attackers exploit.',
+        userBenefit: 'Discover if the site runs vulnerable software versions',
         status: 'coming-soon', 
         icon: Fingerprint, 
-        caiTool: 'nmap'
+        caiTool: 'generic_linux_command (nmap -sV)',
+        caiAgent: 'bug_bounter_agent'
       },
       { 
         id: 'shodan-search', 
-        name: 'Shodan Search', 
-        description: 'Exposed services lookup', 
-        longDescription: 'Search Shodan database for exposed services, open ports, and known vulnerabilities.',
+        name: 'Shodan Exposure Check', 
+        description: 'See what\'s already publicly indexed',
+        longDescription: 'Search Shodan\'s database of internet-connected devices. If it\'s in Shodan, hackers already know about it.',
+        userBenefit: 'Find out what attackers already know about this target',
         status: 'coming-soon', 
         icon: Radar, 
-        caiTool: 'shodan'
+        caiTool: 'shodan_search + shodan_host_info',
+        caiAgent: 'bug_bounter_agent'
       },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 2️⃣ WEB & APP SECURITY (6 tools)
+  // 2️⃣ WEB & APP SECURITY (6 tools) - 3 ready ✅, 3 coming soon
+  // CAI Agent: web_agent, penetration_tester_agent
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'web-security',
     name: 'Web & App Security',
-    description: 'HTTP security, headers, and web vulnerabilities',
+    description: 'Check how secure the website really is',
     icon: Shield,
     color: 'purple',
     emoji: '🛡️',
     tools: [
       { 
         id: 'security-headers', 
-        name: 'Security Headers', 
-        description: 'CSP, HSTS, X-Frame-Options', 
-        longDescription: 'Analyze HTTP security headers including Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, and more.',
+        name: 'Security Headers Check', 
+        description: 'Are basic protections in place?',
+        longDescription: 'Check essential HTTP headers that protect against XSS, clickjacking, and content sniffing attacks. Missing headers = easy targets.',
+        userBenefit: 'Know if the site has basic security hygiene',
         status: 'available', 
         icon: Shield, 
-        caiTool: 'web_request_framework'
+        caiTool: 'cai.tools.web.headers.web_request_framework',
+        caiAgent: 'web_agent'
       },
       { 
         id: 'ssl-tls', 
-        name: 'SSL/TLS Analysis', 
-        description: 'Certificate & encryption', 
-        longDescription: 'Check SSL/TLS certificate validity, expiration date, encryption strength, and protocol versions.',
+        name: 'SSL/TLS Grade', 
+        description: 'Is the connection truly secure?',
+        longDescription: 'Analyze the SSL certificate and encryption. Expired certs, weak ciphers, or old TLS versions are serious red flags.',
+        userBenefit: 'Ensure customer data is encrypted properly',
         status: 'available', 
         icon: Lock, 
-        caiTool: 'web_request_framework'
+        caiTool: 'cai.tools.web.headers.web_request_framework',
+        caiAgent: 'web_agent'
       },
       { 
         id: 'cookie-security', 
-        name: 'Cookie Security', 
-        description: 'HttpOnly, Secure, SameSite', 
-        longDescription: 'Inspect cookies for security flags including HttpOnly, Secure, SameSite, and sensitive data exposure.',
+        name: 'Session Security', 
+        description: 'Can user sessions be hijacked?',
+        longDescription: 'Analyze cookies for security flags. Insecure cookies can lead to session hijacking and account takeovers.',
+        userBenefit: 'Know if user accounts can be easily stolen',
         status: 'available', 
         icon: Cookie, 
-        caiTool: 'web_request_framework'
+        caiTool: 'cai.tools.web.headers.web_request_framework',
+        caiAgent: 'web_agent'
       },
       { 
         id: 'endpoint-discovery', 
-        name: 'HTTP Endpoint Discovery', 
-        description: 'Find hidden endpoints', 
-        longDescription: 'Discover hidden API endpoints, admin panels, backup files, and sensitive directories.',
+        name: 'Hidden Endpoint Finder', 
+        description: 'Find exposed admin panels & APIs',
+        longDescription: 'Discover hidden API endpoints, admin panels, backup files, and sensitive directories that shouldn\'t be public.',
+        userBenefit: 'Uncover exposed admin panels and sensitive files',
         status: 'coming-soon', 
         icon: FileSearch, 
-        caiTool: 'ffuf'
+        caiTool: 'generic_linux_command (ffuf)',
+        caiAgent: 'penetration_tester_agent'
       },
       { 
         id: 'param-fuzzing', 
-        name: 'Parameter Fuzzing', 
-        description: 'Test injection points', 
-        longDescription: 'Test for SQL injection, XSS, command injection and other input validation vulnerabilities.',
+        name: 'Injection Vulnerability Test', 
+        description: 'Can attackers inject malicious code?',
+        longDescription: 'Test for SQL injection, XSS, command injection and other input validation vulnerabilities that lead to data breaches.',
+        userBenefit: 'Know if the site is vulnerable to common attacks',
         status: 'coming-soon', 
         icon: Code, 
-        caiTool: 'ffuf'
+        caiTool: 'generic_linux_command (ffuf)',
+        caiAgent: 'penetration_tester_agent'
       },
       { 
         id: 'auth-flow', 
-        name: 'Authentication Flow', 
-        description: 'Login & session analysis', 
-        longDescription: 'Analyze authentication mechanisms, session handling, token management, and identify weaknesses.',
+        name: 'Login Security Audit', 
+        description: 'Is the authentication system secure?',
+        longDescription: 'Analyze authentication mechanisms, session handling, token management, and password policies for weaknesses.',
+        userBenefit: 'Ensure user accounts cannot be easily compromised',
         status: 'coming-soon', 
         icon: Key, 
-        caiTool: 'web_request_framework'
+        caiTool: 'web_request_framework + custom',
+        caiAgent: 'web_agent'
       },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 3️⃣ VULNERABILITY ANALYSIS (5 tools)
+  // 3️⃣ VULNERABILITY ANALYSIS (5 tools) - 1 ready ✅, 4 coming soon
+  // CAI Agent: vulnerability_scanner_agent, penetration_tester_agent
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'vulnerability',
     name: 'Vulnerability Analysis',
-    description: 'CVE lookup, dependency risks, and exposure scoring',
+    description: 'Find known security holes before you buy',
     icon: AlertTriangle,
     color: 'red',
     emoji: '⚠️',
     tools: [
       { 
         id: 'cve-correlation', 
-        name: 'CVE Correlation', 
-        description: 'Known vulnerabilities lookup', 
-        longDescription: 'Match detected technologies and versions against CVE databases to find known vulnerabilities.',
+        name: 'Known Vulnerability Check', 
+        description: 'Are there published exploits?',
+        longDescription: 'Search CVE databases for known vulnerabilities in detected software versions. Known CVEs = attackers have ready-made exploits.',
+        userBenefit: 'Find out if hackers have published exploits for this site',
         status: 'coming-soon', 
         icon: Bug, 
-        caiTool: 'shodan'
+        caiTool: 'shodan_host_info + CVE API',
+        caiAgent: 'vulnerability_scanner_agent'
       },
       { 
         id: 'dependency-analysis', 
-        name: 'Dependency Analysis', 
-        description: 'Vulnerable libraries', 
-        longDescription: 'Check for vulnerable dependencies, outdated libraries, and known security issues in packages.',
+        name: 'Vulnerable Libraries', 
+        description: 'Are third-party packages safe?',
+        longDescription: 'Check if the site uses npm/pip packages with known security vulnerabilities. One bad library = entire site compromised.',
+        userBenefit: 'Know if outdated libraries put the site at risk',
         status: 'coming-soon', 
         icon: Database, 
-        caiTool: 'npm_audit'
+        caiTool: 'execute_code (npm audit)',
+        caiAgent: 'code_review_agent'
       },
       { 
         id: 'config-weakness', 
-        name: 'Configuration Weakness', 
-        description: 'Misconfigurations', 
-        longDescription: 'Detect security misconfigurations, default credentials, and insecure default settings.',
+        name: 'Security Misconfiguration', 
+        description: 'Are default settings still in place?',
+        longDescription: 'Detect default credentials, debug modes left on, exposed config files, and other dangerous misconfigurations.',
+        userBenefit: 'Find security settings that were never properly configured',
         status: 'coming-soon', 
         icon: Settings, 
-        caiTool: 'nuclei'
+        caiTool: 'generic_linux_command (nuclei)',
+        caiAgent: 'penetration_tester_agent'
       },
       { 
         id: 'exposure-scoring', 
-        name: 'Exposure Scoring', 
-        description: 'Risk score calculation', 
-        longDescription: 'Calculate comprehensive risk score based on all findings and industry benchmarks.',
+        name: 'Risk Score Calculator', 
+        description: 'What\'s the overall security grade?',
+        longDescription: 'AI-powered risk assessment that weighs all findings and calculates a 0-100 risk score you can compare across sites.',
+        userBenefit: 'Get a single number to compare security across acquisitions',
         status: 'available', 
         icon: BarChart3, 
-        caiTool: 'internal'
+        caiTool: 'internal + Claude AI',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'tech-detection', 
-        name: 'Technology Detection', 
-        description: 'CMS, frameworks, versions', 
-        longDescription: 'Identify CMS platforms, web frameworks, JavaScript libraries, and their versions.',
+        name: 'Tech Stack Analysis', 
+        description: 'What technologies power this site?',
+        longDescription: 'Identify CMS (WordPress, Shopify), frameworks (React, Laravel), and their versions. Old tech = old vulnerabilities.',
+        userBenefit: 'Understand what you\'re inheriting before you buy',
         status: 'coming-soon', 
         icon: Cpu, 
-        caiTool: 'wappalyzer'
+        caiTool: 'web_request_framework + parsing',
+        caiAgent: 'web_agent'
       },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 4️⃣ DEFENSIVE / MITIGATION (5 tools)
+  // 4️⃣ DEFENSIVE / MITIGATION (5 tools) - 2 ready ✅, 3 coming soon
+  // CAI Agent: reasoning_agent (Claude AI powered)
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'defensive',
-    name: 'Defensive / Mitigation',
-    description: 'Recommendations and fixes for sellers',
+    name: 'Fix & Remediation Guides',
+    description: 'Know exactly how to fix what\'s broken',
     icon: Wrench,
     color: 'green',
     emoji: '🔧',
     tools: [
       { 
         id: 'header-remediation', 
-        name: 'Header Remediation', 
-        description: 'Fix missing headers', 
-        longDescription: 'Step-by-step guide to implement missing security headers with code examples.',
+        name: 'Header Fix Guide', 
+        description: 'Step-by-step header implementation',
+        longDescription: 'AI-generated guide with exact code snippets to add missing security headers for Apache, Nginx, and Cloudflare.',
+        userBenefit: 'Get copy-paste code to fix header issues immediately',
         status: 'available', 
         icon: Shield, 
-        caiTool: 'claude'
+        caiTool: 'Claude AI + think',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'ssl-config-guide', 
-        name: 'SSL Configuration Guide', 
-        description: 'Best practices for SSL', 
-        longDescription: 'Comprehensive guide for SSL/TLS configuration following industry best practices.',
+        name: 'SSL/TLS Fix Guide', 
+        description: 'Secure certificate configuration',
+        longDescription: 'Best practices guide for SSL/TLS setup including certificate renewal, cipher selection, and protocol configuration.',
+        userBenefit: 'Know exactly how to upgrade to A+ SSL rating',
         status: 'available', 
         icon: Lock, 
-        caiTool: 'claude'
+        caiTool: 'Claude AI + think',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'security-hardening', 
-        name: 'Security Hardening', 
-        description: 'Server hardening tips', 
-        longDescription: 'Server and application hardening recommendations tailored to your tech stack.',
+        name: 'Server Hardening Guide', 
+        description: 'Lock down the server configuration',
+        longDescription: 'AI-tailored recommendations to harden your server based on detected OS, web server, and tech stack.',
+        userBenefit: 'Get a personalized security checklist for your specific setup',
         status: 'coming-soon', 
         icon: ShieldCheck, 
-        caiTool: 'claude'
+        caiTool: 'Claude AI + think',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'waf-recommendations', 
-        name: 'WAF Recommendations', 
-        description: 'Firewall configuration', 
-        longDescription: 'Web Application Firewall setup and rule configuration recommendations.',
+        name: 'WAF Setup Guide', 
+        description: 'Add a security layer with firewall rules',
+        longDescription: 'Web Application Firewall configuration guide with recommended rules for common attacks.',
+        userBenefit: 'Know exactly which WAF rules to enable',
         status: 'coming-soon', 
         icon: ShieldAlert, 
-        caiTool: 'claude'
+        caiTool: 'Claude AI + think',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'compliance-checklist', 
-        name: 'Compliance Checklist', 
-        description: 'OWASP, PCI-DSS guidance', 
-        longDescription: 'Compliance guidance for OWASP Top 10, PCI-DSS, and other security standards.',
+        name: 'Compliance Roadmap', 
+        description: 'Path to OWASP & PCI-DSS compliance',
+        longDescription: 'Gap analysis against OWASP Top 10, PCI-DSS, and SOC 2 requirements with remediation steps.',
+        userBenefit: 'Know what\'s needed for compliance before you buy',
         status: 'coming-soon', 
         icon: BookOpen, 
-        caiTool: 'claude'
+        caiTool: 'Claude AI + think',
+        caiAgent: 'reasoning_agent'
       },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 5️⃣ THREAT INTELLIGENCE (4 tools)
+  // 5️⃣ THREAT INTELLIGENCE (4 tools) - 0 ready, 4 coming soon
+  // CAI Agent: bug_bounter_agent + External APIs (VirusTotal, HIBP, URLScan)
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'threat-intel',
     name: 'Threat Intelligence',
-    description: 'Reputation, blacklists, and threat data',
+    description: 'Check the site\'s reputation history',
     icon: Eye,
     color: 'orange',
     emoji: '🕵️',
     tools: [
       { 
         id: 'ip-reputation', 
-        name: 'IP Reputation', 
-        description: 'Check threat databases', 
-        longDescription: 'Check IP addresses against threat intelligence databases and blacklists.',
+        name: 'IP Reputation Check', 
+        description: 'Is this IP flagged as malicious?',
+        longDescription: 'Search threat databases for the server\'s IP. A bad IP reputation can get your emails blocked and customers warned.',
+        userBenefit: 'Know if you\'re buying a server with a bad history',
         status: 'coming-soon', 
         icon: Activity, 
-        caiTool: 'shodan'
+        caiTool: 'shodan_search + shodan_host_info',
+        caiAgent: 'bug_bounter_agent'
       },
       { 
         id: 'domain-reputation', 
-        name: 'Domain Reputation', 
-        description: 'Blacklist checks', 
-        longDescription: 'Check domain against spam blacklists, phishing databases, and malware lists.',
+        name: 'Domain Blacklist Check', 
+        description: 'Is the domain flagged for spam or malware?',
+        longDescription: 'Check if the domain is on spam blacklists, Google Safe Browsing, or phishing databases. Blacklisted = lost traffic.',
+        userBenefit: 'Avoid buying a domain that Google will flag as dangerous',
         status: 'coming-soon', 
         icon: Globe, 
-        caiTool: 'virustotal'
+        caiTool: 'VirusTotal API',
+        caiAgent: 'external_api'
       },
       { 
         id: 'malware-history', 
         name: 'Malware History', 
-        description: 'Historical incidents', 
-        longDescription: 'Check for historical malware infections, phishing campaigns, and security incidents.',
+        description: 'Was this site ever infected?',
+        longDescription: 'Search historical scans for malware infections, SEO spam injections, and defacements. Past infections often leave hidden backdoors.',
+        userBenefit: 'Discover if the site was hacked before (and maybe still is)',
         status: 'coming-soon', 
         icon: Skull, 
-        caiTool: 'urlscan'
+        caiTool: 'URLScan API',
+        caiAgent: 'external_api'
       },
       { 
         id: 'breach-database', 
-        name: 'Breach Database', 
-        description: 'Data breach exposure', 
-        longDescription: 'Check if the domain or associated emails have been exposed in known data breaches.',
+        name: 'Data Breach Check', 
+        description: 'Was user data ever leaked?',
+        longDescription: 'Check HaveIBeenPwned for breaches involving this domain. A breach history means legal liability and reputation damage.',
+        userBenefit: 'Know if you\'re inheriting a data breach liability',
         status: 'coming-soon', 
         icon: FileWarning, 
-        caiTool: 'haveibeenpwned'
+        caiTool: 'HaveIBeenPwned API',
+        caiAgent: 'external_api'
       },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 6️⃣ AI REASONING & DECISION (7 tools) - CORE VALUE
+  // 6️⃣ AI REASONING & DECISION (7 tools) - 6 ready ✅, 1 coming soon ⭐ CORE VALUE
+  // CAI Agent: reasoning_agent (cai.tools.misc.reasoning.think + Claude claude-sonnet-4-20250514)
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'ai-reasoning',
-    name: 'AI Reasoning & Decision',
-    description: 'Claude-powered analysis (Core Value!)',
+    name: 'AI Analysis & Decision',
+    description: '⭐ Our secret sauce - AI-powered insights',
     icon: Brain,
     color: 'pink',
     emoji: '🧠',
@@ -396,115 +463,138 @@ const categories: Category[] = [
       { 
         id: 'ai-risk-assessment', 
         name: 'AI Risk Assessment', 
-        description: 'Analyze all security risks', 
-        longDescription: 'AI-powered comprehensive analysis of all security findings with risk scoring.',
+        description: 'What\'s the real risk here?',
+        longDescription: 'AI analyzes all technical findings and explains what they actually mean for your business in plain English.',
+        userBenefit: 'Understand the real-world impact of each security issue',
         status: 'available', 
         icon: Brain, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'ai-verdict', 
-        name: 'Buy/No-Buy Verdict', 
-        description: 'AI recommendation', 
-        longDescription: 'Get an AI-generated recommendation with confidence score for purchase decision.',
+        name: 'Buy / Caution / No-Buy', 
+        description: 'Should you buy this asset?',
+        longDescription: 'AI weighs all findings and gives you a clear recommendation with confidence score. Like a security expert in your pocket.',
+        userBenefit: 'Get a clear yes/no/maybe with reasoning you can trust',
         status: 'available', 
         icon: TrendingUp, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'executive-summary', 
         name: 'Executive Summary', 
-        description: 'Non-technical summary', 
-        longDescription: 'Clear, non-technical summary of security posture for decision makers.',
+        description: 'The bottom line in 60 seconds',
+        longDescription: 'A clear, jargon-free summary written for business owners and investors, not security engineers.',
+        userBenefit: 'Share with partners or investors without technical translation',
         status: 'available', 
         icon: FileText, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'priority-fixes', 
-        name: 'Priority Fixes', 
-        description: 'AI-prioritized remediation', 
-        longDescription: 'AI-generated prioritized list of fixes based on urgency and effort required.',
+        name: 'Fix Priority List', 
+        description: 'What to fix first?',
+        longDescription: 'AI-ranked list of issues by urgency, business impact, and effort required. Know where to start.',
+        userBenefit: 'Negotiate price based on required fixes',
         status: 'available', 
         icon: Target, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'buyer-advice', 
-        name: 'For Buyer Advice', 
-        description: 'Guidance for buyers', 
-        longDescription: 'Specific guidance and considerations for potential buyers of the digital asset.',
+        name: 'Buyer\'s Guide', 
+        description: 'What to ask before signing',
+        longDescription: 'AI-generated questions to ask the seller, red flags to watch for, and negotiation points based on findings.',
+        userBenefit: 'Go into negotiations fully prepared',
         status: 'available', 
         icon: ShieldCheck, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'seller-advice', 
-        name: 'For Seller Advice', 
-        description: 'Guidance for sellers', 
-        longDescription: 'Specific recommendations for sellers to improve security before sale.',
+        name: 'Seller\'s Prep Guide', 
+        description: 'Increase your sale price',
+        longDescription: 'Quick wins the seller can fix before sale to improve the security score and justify a higher price.',
+        userBenefit: 'Help sellers understand what quick fixes add value',
         status: 'available', 
         icon: Wrench, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
       { 
         id: 'comparative-analysis', 
-        name: 'Comparative Analysis', 
-        description: 'Industry benchmarks', 
-        longDescription: 'Compare security posture against industry benchmarks and similar sites.',
+        name: 'Industry Benchmark', 
+        description: 'How does it compare to competitors?',
+        longDescription: 'See how this asset\'s security stacks up against industry averages and similar sites.',
+        userBenefit: 'Know if security is above or below average for this niche',
         status: 'coming-soon', 
         icon: BarChart3, 
-        caiTool: 'claude'
+        caiTool: 'cai.tools.misc.reasoning.think + Claude',
+        caiAgent: 'reasoning_agent'
       },
     ]
   },
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 7️⃣ REPORTING (4 tools)
+  // 7️⃣ REPORTING (4 tools) - 3 ready ✅, 1 coming soon
+  // Internal: Supabase DB, FastAPI, WeasyPrint/ReportLab
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'reporting',
-    name: 'Reporting',
-    description: 'Export and documentation tools',
+    name: 'Reports & Export',
+    description: 'Save, share, and integrate your results',
     icon: FileText,
     color: 'gray',
     emoji: '📄',
     tools: [
       { 
         id: 'json-report', 
-        name: 'JSON Report', 
-        description: 'Full technical report', 
-        longDescription: 'Export complete technical report in JSON format for integration with other tools.',
+        name: 'JSON Export', 
+        description: 'Raw data for developers',
+        longDescription: 'Export the complete technical report in JSON format. Perfect for integrating with your own tools or CI/CD pipelines.',
+        userBenefit: 'Integrate security checks into your existing workflow',
         status: 'available', 
         icon: FileJson, 
-        caiTool: 'internal'
+        caiTool: 'Internal (FastAPI response)',
+        caiAgent: 'internal'
       },
       { 
         id: 'pdf-report', 
         name: 'PDF Report', 
-        description: 'Professional PDF', 
-        longDescription: 'Generate professional PDF report suitable for stakeholders and documentation.',
+        description: 'Share with stakeholders',
+        longDescription: 'Generate a professional PDF report with branding. Perfect for due diligence packages and investor presentations.',
+        userBenefit: 'Include in acquisition documentation',
         status: 'coming-soon', 
         icon: FileType, 
-        caiTool: 'reportlab'
+        caiTool: 'WeasyPrint / ReportLab',
+        caiAgent: 'internal'
       },
       { 
         id: 'scan-history', 
-        name: 'Scan History', 
-        description: 'Previous assessments', 
-        longDescription: 'Access, compare, and analyze all your previous security assessments.',
+        name: 'Assessment History', 
+        description: 'Track security over time',
+        longDescription: 'View all your past assessments. Compare security improvements over time or across multiple acquisition targets.',
+        userBenefit: 'Compare multiple sites side-by-side',
         status: 'available', 
         icon: History, 
-        caiTool: 'database'
+        caiTool: 'Supabase PostgreSQL',
+        caiAgent: 'internal'
       },
       { 
         id: 'api-access', 
         name: 'API Access', 
-        description: 'RESTful API', 
-        longDescription: 'Programmatic access to FurtherSecurity via RESTful API for automation.',
+        description: 'Automate your security checks',
+        longDescription: 'RESTful API for programmatic access. Build security checks into your acquisition workflow or portfolio monitoring.',
+        userBenefit: 'Automate security checks for your deal flow',
         status: 'available', 
         icon: Code, 
-        caiTool: 'fastapi'
+        caiTool: 'FastAPI REST endpoints',
+        caiAgent: 'internal'
       },
     ]
   },
@@ -1235,9 +1325,20 @@ const Dashboard = () => {
                     )}
                   </div>
                   <p className="text-gray-400 text-sm">{selectedTool.longDescription}</p>
-                  <p className="text-gray-600 text-xs mt-2">
-                    CAI Tool: <code className="text-primary-300 bg-gray-800 px-1.5 py-0.5 rounded">{selectedTool.caiTool}</code>
-                  </p>
+                  {selectedTool.userBenefit && (
+                    <p className="text-primary-400 text-sm mt-2 flex items-center gap-1.5">
+                      <span className="text-primary-500">💡</span> {selectedTool.userBenefit}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-gray-600 text-xs">
+                      Powered by: <code className="text-purple-400 bg-gray-800 px-1.5 py-0.5 rounded">{selectedTool.caiAgent}</code>
+                    </span>
+                    <span className="text-gray-700">•</span>
+                    <span className="text-gray-600 text-xs">
+                      CAI Tool: <code className="text-primary-300 bg-gray-800 px-1.5 py-0.5 rounded">{selectedTool.caiTool}</code>
+                    </span>
+                  </div>
                 </div>
               </div>
 
